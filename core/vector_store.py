@@ -7,6 +7,7 @@ and Cohere reranking for higher retrieval quality.
 from typing import List, Optional
 import cohere
 import chromadb
+import streamlit as st
 from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
 
@@ -20,6 +21,8 @@ from config.settings import (
 from core.embeddings import get_embeddings
 
 
+
+@st.cache_resource
 def get_vector_store() -> Chroma:
     """Returns (or creates) the persistent ChromaDB vector store."""
     return Chroma(
@@ -102,4 +105,8 @@ def list_indexed_sources() -> List[str]:
 def clear_collection() -> None:
     """Wipes the entire ChromaDB collection. Use with care."""
     store = get_vector_store()
-    store.delete_collection()
+    try:
+        store.delete_collection()
+    except Exception:
+        pass
+    st.cache_resource.clear()
