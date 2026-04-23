@@ -127,7 +127,7 @@ with st.sidebar:
     if col_a.button("🗑️ Clear Chat", use_container_width=True):
         clear_history(st.session_state)
         st.rerun()
-    if col_b.button("💥 Clear PDF's", use_container_width=True):
+    if col_b.button("💥 Clear DB", use_container_width=True):
         clear_collection()
         st.session_state["uploader_key"] += 1  
         st.success("Vector store cleared.")
