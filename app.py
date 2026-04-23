@@ -76,10 +76,15 @@ with st.sidebar:
     st.divider()
 
     st.subheader("📄 Upload Papers")
+    
+    # --- NEW: Initialize a key to reset the uploader ---
+    if "uploader_key" not in st.session_state:
+        st.session_state["uploader_key"] = 0
     uploaded_files = st.file_uploader(
         "Upload PDF research papers",
         type="pdf",
         accept_multiple_files=True,
+        key=f"uploader_{st.session_state['uploader_key']}" 
     )
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -122,8 +127,9 @@ with st.sidebar:
     if col_a.button("🗑️ Clear Chat", use_container_width=True):
         clear_history(st.session_state)
         st.rerun()
-    if col_b.button("💥 Clear DB", use_container_width=True):
+    if col_b.button("💥 Clear PDF's", use_container_width=True):
         clear_collection()
+        st.session_state["uploader_key"] += 1  
         st.success("Vector store cleared.")
         st.rerun()
 
