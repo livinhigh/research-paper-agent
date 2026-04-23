@@ -75,17 +75,27 @@ with st.sidebar:
 
     st.divider()
 
-    st.subheader("📄 Upload Papers")
+   st.subheader("📄 Upload Papers")
     
-    # --- NEW: Initialize a key to reset the uploader ---
+    # 1. Initialize states for file tracking
     if "uploader_key" not in st.session_state:
         st.session_state["uploader_key"] = 0
+    if "previous_uploaded_files" not in st.session_state:
+        st.session_state["previous_uploaded_files"] = []
+
     uploaded_files = st.file_uploader(
         "Upload PDF research papers",
         type="pdf",
         accept_multiple_files=True,
-        key=f"uploader_{st.session_state['uploader_key']}" 
+        key=f"uploader_{st.session_state['uploader_key']}"
     )
+
+    # 2. Detect if the user added or removed a file (like clicking 'X')
+    current_filenames = [f.name for f in uploaded_files] if uploaded_files else []
+    if current_filenames != st.session_state["previous_uploaded_files"]:
+        st.session_state["previous_uploaded_files"] = current_filenames
+        st.session_state["suggested_questions"] = []  # Clear stale questions instantly
+
     if uploaded_files:
         for uploaded_file in uploaded_files:
             file_bytes = uploaded_file.read()
@@ -95,19 +105,20 @@ with st.sidebar:
                     n = add_documents(docs)
                     if n > 0:
                         st.success(f"✅ {uploaded_file.name}: {n} chunks indexed")
-                        
-                        # --- NEW: Generate questions from the first chunk ---
-                        with st.spinner("Generating suggested questions..."):
+                    else:
+                        st.info(f"ℹ️ {uploaded_file.name}: already indexed")
+
+                    # 3. Generate questions IF we don't currently have any
+                    # (This runs even if n=0, fixing the re-upload bug!)
+                    if not st.session_state.get("suggested_questions"):
+                        with st.spinner(f"Generating questions for {uploaded_file.name}..."):
                             try:
                                 first_chunk_text = docs[0].page_content
                                 questions = generate_suggested_questions(first_chunk_text)
                                 if questions:
                                     st.session_state["suggested_questions"] = questions
-                            except Exception as e:
-                                pass # Silently fail so it doesn't break the upload flow
-                        # ----------------------------------------------------
-                    else:
-                        st.info(f"ℹ️ {uploaded_file.name}: already indexed")
+                            except Exception:
+                                pass
                 else:
                     st.error(f"❌ Could not extract text from {uploaded_file.name}")
 
