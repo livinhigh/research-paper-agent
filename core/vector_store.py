@@ -21,13 +21,16 @@ from config.settings import (
 from core.embeddings import get_embeddings
 
 
-
+# 1. ONLY cache the core ChromaDB client to prevent connection crashes. 
 @st.cache_resource
+def get_chroma_client():
+    return chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
+
+
+# 2. DO NOT cache this function. LangChain will safely wrap the cached client.
 def get_vector_store() -> Chroma:
-    """Returns (or creates) the persistent ChromaDB vector store."""
-    
-    client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
-    
+    """Returns the LangChain wrapper around the persistent ChromaDB client."""
+    client = get_chroma_client()
     return Chroma(
         client=client,
         collection_name=CHROMA_COLLECTION,
@@ -66,8 +69,6 @@ def retrieve_and_rerank(query: str, k_fetch: int = TOP_K_RETRIEVAL, k_keep: int 
     Two-stage retrieval:
       1. ChromaDB similarity search (k_fetch candidates)
       2. Cohere reranker picks the best k_keep
-
-    Falls back to raw retrieval if Cohere key is missing.
     """
     store = get_vector_store()
     candidates = store.similarity_search(query, k=k_fetch)
@@ -103,7 +104,17 @@ def list_indexed_sources() -> List[str]:
         return sorted(sources)
     except Exception:
         return []
-        
+
+
+def clear_collection() -> None:
+    """Wipes the ChromaDB collection without breaking the connection."""
+    client = get_chroma_client()
+    try:
+        client.delete_collection(CHROMA_COLLECTION)
+    except Exception:
+        pass
+
+
 def delete_source(filename: str) -> None:
     """Deletes all chunks associated with a specific filename from ChromaDB."""
     client = get_chroma_client()
@@ -112,15 +123,4 @@ def delete_source(filename: str) -> None:
         collection = client.get_collection(CHROMA_COLLECTION)
         collection.delete(where={"source": filename})
     except Exception:
-        pass       
-
-
-def clear_collection() -> None:
-    """Wipes the entire ChromaDB collection. Use with care."""
-    store = get_vector_store()
-    try:
-        store.delete_collection()
-    except Exception:
         pass
-    
-    st.cache_resource.clear()
